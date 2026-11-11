@@ -1,0 +1,25 @@
+docs/_site
+docs/.sass-cache
+docs/.jekyll-cache
+docs/.jekyll-metadata
+docs/vendor
+docs/Gemfile.lock
+
+# Mac OS
+**/.DS_Store
+
+# Python
+.venv
+__pycache__
+
+# .NET
+
+test/operator/dotnet/obj/**
+docs/.artifacts
+.artifacts
+
+# Add LLM/AI related files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursor

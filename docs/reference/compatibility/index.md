@@ -1,0 +1,26 @@
+---
+navigation_title: Compatibility and support
+description: Compatibility and support levels for different OpenTelemetry Distributions.
+applies_to:
+  stack:
+  serverless:
+    observability:
+products:
+  - id: cloud-serverless
+  - id: observability
+  - id: edot-collector
+  - id: edot-sdk
+---
+
+# {{edot}} compatibility and support
+
+The following pages describe the compatibility and support levels for different OpenTelemetry Distributions.
+
+- [Features](features.md)
+- [Collectors](collectors.md)
+- [SDKs](sdks.md)
+- [{{edot}} compared to upstream](edot-vs-upstream.md)
+- [Limitations](limitations.md)
+- [Nomenclature](nomenclature.md)
+- [Data streams comparison](data-streams.md)
+

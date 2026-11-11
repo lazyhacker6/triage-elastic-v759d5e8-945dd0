@@ -1,0 +1,97 @@
+---
+navigation_title: Collector distributions
+description: Compatibility and support information for {{agent}} versions with {{stack}} versions and operating systems.
+applies_to:
+  stack:
+  serverless:
+    observability:
+products:
+  - id: cloud-serverless
+  - id: observability
+  - id: edot-collector
+---
+
+# {{edot}} compatibility and support for OTel Collectors
+
+The following table provides an overview of compatibility and support of {{agent}} versions with {{stack}} (ELK) versions.
+
+## {{agent}} 9.x [collector-9]
+
+| ELK stack version           | **ELK < 8.16** | **ELK 8.16 - 8.17** | **ELK 8.18 - 8.19** | **ELK 9.0 and later** |
+| :-------------------------- | :------------- | :------------------ | :------------------ | :---------- |
+| **Compatibility**           | [Incompatible] | [Compatible]        | [Compatible]        | [Compatible]|
+| **Level of support**        | [Not supported] | [Not supported]    | [Supported]         | [Supported] |
+
+:::{note}
+If you're on {{stack}} 8.18 or 8.19 and require Elastic support, use {{agent}} version 9.x, as this combination is officially [Supported].
+:::
+
+### Configuration compatibility
+
+If you upgrade to {{agent}} 9.x while running {{stack}} 8.18 or 8.19, continue using the configuration recommended for your Stack version, not the {{agent}} 9.x default configuration. This ensures full compatibility with {{kib}} Observability applications.
+
+## Operating systems
+
+The following table provides an overview of compatibility and support of {{agent}} versions with different operating systems.
+
+### {{agent}} 9.x [os-collector-9]
+
+These operating systems and distributions are [compatible] with {{agent}} 9.x:
+
+| OS Type | Architecture | Distribution or version                                  | Level of support     |
+| :------ | :----------- | :------------------------------------------------------- | :------------------- |
+| Linux   | amd64        | Ubuntu 24.04, 22.04, 20.04                               | [Supported]          |
+| Linux   | arm64        | Ubuntu 24.04, 22.04, 20.04                               | [Supported]          |
+| Linux   | amd64        | RHEL 8                                                   | [Supported]          |
+| macOS   | amd64        | macOS 10.x and higher                                    | [Not supported]      |
+| macOS   | arm64        | macOS 10.x and higher                                    | [Not supported]      |
+| Windows | amd64        | Server 2022, 2022 Core, 2019, 2019 Core, 2016, 2016 Core | [Not supported]      |
+
+The following Kubernetes distributions are [compatible] with {{agent}} 9.x:
+
+| Kubernetes  | Architecture     | Version                                                  |
+| :---------- | :--------------- | :------------------------------------------------------- |
+| Kubernetes  | amd64, arm64     | 1.33.0, 1.32.0, 1.31.0, 1.30.2, 1.29.4, 1.28.9, 1.27.16  |
+
+{{agent}} is compatible with GKE, EKS, and AKS. Refer to [Limitations on managed Kubernetes environments](/reference/compatibility/limitations.md#limitations-on-managed-kubernetes-environments) for more information.
+
+### Platform-specific recommendations
+
+For certain platforms, use platform-native OpenTelemetry distributions [at the edge](/reference/architecture/index.md#understanding-edge-deployment), as they provide the best native experience.
+
+:::{important}
+Elastic does not provide support for distributions other than the {{edot}}.
+:::
+
+#### Red Hat OpenShift
+
+{applies_to}`stack: ga 9.5+` {{agent}} is supported for use on OpenShift. Refer to the compatibility [Support matrix](https://www.elastic.co/support/matrix#matrix_kubernetes) for details.
+
+We also recommend using the [Red Hat build of OpenTelemetry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/red_hat_build_of_opentelemetry/index) [at the edge](/reference/architecture/index.md#understanding-edge-deployment) to collect and send telemetry data. For support of OpenTelemetry components in OpenShift, contact Red Hat.
+
+#### AWS Lambda
+
+Use the [AWS Distro for OpenTelemetry (ADOT)](https://aws-otel.github.io/docs/getting-started/lambda) [at the edge](/reference/architecture/index.md#understanding-edge-deployment) to collect and send telemetry data from AWS Lambda services. For support of ADOT components, contact AWS.
+
+:::{tip}
+For AWS Lambda workloads that generate telemetry outside the function runtime, such as CloudWatch logs, use the [{{edot-cf}}](edot-cloud-forwarder-aws://reference/edot-cf-aws/index.md) instead. 
+:::
+
+## {{agent}} components
+
+For information on the compatibility of each Collector component, refer to the [full list of Core and Extended components](elastic-agent://reference/edot-collector/components.md).
+
+## Other Collector distributions
+
+Non-{{edot}} distributions of the OTel Collector, such as custom Collector builds, contrib Collector distributions, and so on aren't officially supported through Elastic but are technically compatible ([Compatible]) if they contain the [required OTel Collector components](elastic-agent://reference/edot-collector/custom-collector.md) and are configured like {{agent}}.
+
+You can retrieve required components and configuration options from the [example configuration files](https://github.com/elastic/elastic-agent/tree/v{{version.edot_collector}}/internal/edot/samples/linux) for {{agent}}.
+
+For a comparison between {{edot}} and contrib OpenTelemetry components, refer to [{{edot}} compared to upstream](edot-vs-upstream.md).
+
+[Incompatible]: nomenclature.md
+[Compatible]: nomenclature.md
+[Not supported]: nomenclature.md
+[Supported]: nomenclature.md
+[Extended]: nomenclature.md#extended-components
+[Core]: nomenclature.md#core-components

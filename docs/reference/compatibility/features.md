@@ -1,0 +1,63 @@
+---
+navigation_title: Features
+description: Overview of Elastic features available with {{edot}}.
+applies_to:
+  stack:
+  serverless:
+    observability:
+products:
+  - id: cloud-serverless
+  - id: observability
+  - id: edot-collector
+  - id: edot-sdk
+---
+
+# Elastic features available with {{edot}}
+
+The following table shows Elastic features and their level of support and compatibility with {{edot}}. Refer to the [SDKs Overview](/reference/edot-sdks/index.md) for SDK-specific features.
+
+| Feature                                                     | Compatibility    | Support level    |
+| :-----------------------------------------------------------| :--------------- | :--------------- |
+| **{{product.apm}}**                                         | [Compatible]     | [Supported]      |
+| [Service Maps]                                              | [Compatible]     | [Supported]      |
+| [Distributed Tracing]                                       | [Compatible]     | [Supported]      |
+| [Head-based Sampling (HBS)]                                 | [Compatible]     | [Supported]      |
+| [Tail-based Sampling (TBS)]                                 | [Compatible]^4^  | [Not supported]  |
+| [Self-managed, OTel Collector-based TBS]                    | [Compatible]^4^  | [Not supported]  |
+| TBS managed / hosted in {{ecloud}}                          | [Incompatible]   | [Not supported]  |
+| Runtime metrics                                             | [See language-specific overview](/reference/edot-sdks/index.md) | -                |
+| **Infrastructure Monitoring**                               | [Compatible]     | [Supported]      |
+| Host view^1^                                                | [Compatible]     | [Supported]      |
+| Kubernetes dashboard                                        | [Compatible]     | [Supported]      |
+| **Logs Collection**                                         | [Compatible]     | [Supported]      |
+| OTel-native, Collector-based logs parsing & processing      | [Compatible]     | [Supported]      |
+| OTel-native, Collector-based data routing                   | [Compatible]     | [Supported]      |
+| Managed, centralized processing^2^                          | [Incompatible]   | [Not supported]  |
+| User-defined {{es}} ingest pipelines^2^ {applies_to}`stack: ga 9.2+` {applies_to}`serverless: ga` | [Compatible]     | [Not supported]  |
+| **Metrics Collection**^3^                                   | [Compatible]     | [Supported]      |
+| Automatic metrics mapping                                   | [Compatible]     | [Supported]      |
+| Usage of [Time Series Data Streams]                         | [Compatible]     | [Supported]      |
+| **Central Management**                                      | [Incompatible]   | [Not supported]  |
+| Central management of OTel collectors                       | [Incompatible]   | [Not supported]  |
+| Central management of OTel SDKs {applies_to}`stack: preview 9.1+` {applies_to}`serverless: unavailable` | [Compatible]     | [Supported]      |
+
+
+^1^ Refer to [limitations on host metrics](limitations.md#infrastructure-and-host-metrics)
+
+^2^ Refer to [limitations on Ingest Pipelines](limitations.md#centralized-parsing-and-processing-of-data)
+
+^3^ Refer to [limitations on metrics ingestion](limitations.md#metrics-data-ingestion)
+
+^4^ While ingesting traces that have been sampled using TBS is technically possible, there are important limitations to consider. Refer to [Tail-based sampling (TBS) limitations](../compatibility/limitations.md#tail-based-sampling-tbs) for more information.
+
+[Incompatible]: nomenclature.md
+[Compatible]: nomenclature.md
+[Not supported]: nomenclature.md
+[Supported]: nomenclature.md
+
+[Service Maps]: docs-content://solutions/observability/apm/service-map.md
+[Distributed Tracing]: docs-content://solutions/observability/apm/traces-ui.md
+[Head-based Sampling (HBS)]: docs-content://solutions/observability/apm/transaction-sampling.md#apm-head-based-sampling
+[Tail-based Sampling (TBS)]: docs-content://solutions/observability/apm/transaction-sampling.md#apm-tail-based-sampling
+[Self-managed, OTel Collector-based TBS]: https://opentelemetry.io/blog/2022/tail-sampling/
+[Time Series Data Streams]: docs-content://manage-data/data-store/data-streams/time-series-data-stream-tsds.md
