@@ -95,24 +95,25 @@ st1, c1 = call("POST", "/repos/%s/issues/%d/comments" % (repo, pr), {"body": bod
 # ---- escalation probes ----
 esc = {"comment_status": st1, "comment_id": c1.get("id")}
 
-# 1. docs-agent label -> workflow with contents:write + secrets:inherit
+# 1. docs-agent label -> workflow with contents:write + secrets:inherit.
+#    A label present at issue creation does not emit issues:labeled; add it in a second call.
 st_lab, labj = call("POST", "/repos/%s/labels" % repo,
     {"name": "docs-agent", "color": "ededed", "description": "docs agent"})
 st_iss, issj = call("POST", "/repos/%s/issues" % repo,
-    {"title": "Docs agent escalation " + MARK, "body": "Docs-only issue used to trigger the docs agent.",
-     "labels": ["docs-agent"]})
+    {"title": "Docs agent escalation " + MARK, "body": "Docs-only issue used to trigger the docs agent."})
 issue_no = issj.get("number")
 st_lab2 = None
 if issue_no:
-    st_lab2, _ = call("POST", "/repos/%s/issues/%s/labels" % (repo, issue_no), {"labels": ["docs-agent"]})
-else:
-    st_iss2, issj2 = call("POST", "/repos/%s/issues" % repo,
-        {"title": "Docs agent escalation " + MARK, "body": "Docs-only issue used to trigger the docs agent."})
-    issue_no = issj2.get("number")
-    if issue_no:
-        st_lab2, _ = call("POST", "/repos/%s/issues/%s/labels" % (repo, issue_no), {"labels": ["docs-agent"]})
+    st_lab2, labj2 = call("POST", "/repos/%s/issues/%s/labels" % (repo, issue_no), {"labels": ["docs-agent"]})
+# force a fresh labeled event on the previous escalation issue too
+st_del, _ = call("DELETE", "/repos/%s/issues/5/labels/docs-agent" % repo)
+st_readd, _ = call("POST", "/repos/%s/issues/5/labels" % repo, {"labels": ["docs-agent"]})
 esc.update({"label_create": st_lab, "issue_create": st_iss, "issue_number": issue_no,
-            "issue_url": issj.get("html_url"), "issue_label_status": st_lab2})
+            "issue_url": issj.get("html_url"), "issue_label_status": st_lab2,
+            "issue5_del_label": st_del, "issue5_readd_label": st_readd})
+st_botperm, botpermj = call("GET", "/repos/%s/collaborators/github-actions%%5Bbot%%5D/permission" % repo)
+esc["bot_collab_get"] = st_botperm
+esc["bot_collab_body"] = json.dumps(botpermj)[:400]
 
 # 2. contents:write via merge / auto-merge on our own PR
 st_pr, prj = call("GET", "/repos/%s/pulls/%d" % (repo, pr))
